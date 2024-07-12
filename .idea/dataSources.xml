@@ -15,5 +15,12 @@
       <jdbc-url>jdbc:sqlite:D:\flavio-dev\project_flavio\db_query_builder\db_qb\tests\database.sqlite</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="pruebaLogin db" uuid="5cceff55-77b5-48b5-9475-7571fbb14af2">
+      <driver-ref>mysql.8</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>com.mysql.cj.jdbc.Driver</jdbc-driver>
+      <jdbc-url>jdbc:mysql://localhost:3306/pruebaLogin</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

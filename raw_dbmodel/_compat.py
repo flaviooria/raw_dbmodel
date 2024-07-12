@@ -6,7 +6,7 @@ import pandas as pd
 import sqlalchemy.sql
 from pandas import DataFrame
 from sqlalchemy import Connection, CursorResult, text
-from sqlmodel import inspect
+from sqlmodel import inspect, SQLModel
 from typing_extensions import Generic
 
 from raw_dbmodel._abstracts import RepositoryAbstract
@@ -148,11 +148,76 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
             raise
 
     def fields(self, fields: str) -> 'RepositoryBase[_T]':
+        """
+            Sets the fields to be selected in the SQL query.
+
+            Parameters
+            ----------
+            fields : str
+                A string containing the field names to be selected, separated by commas.
+
+            Returns
+            -------
+            RepositoryBase[_T]
+                The current repository instance with the specified fields set.
+
+            Examples
+            --------
+            Setting the fields to select in the query:
+
+            >>> repository = RepositoryBase()
+            >>> repository.fields('id, name, age')
+            RepositoryBase[Model]
+
+            This will result in the following query being constructed when `get_data` is called:
+
+            >>> repository.get_data()
+            # SQL query constructed: "select id, name, age from tablename"
+        """
         self.__fields = fields
 
         return self
 
     def insert(self, model: Type[_T], *, have_autoincrement_default: bool = True) -> _T:
+        """
+        Insert a new model into the database.
+
+        Parameters
+        ----------
+            model: Type[_T]
+                The model to be inserted into the database.
+            have_autoincrement_default: bool
+                A flag to specify whether to include autoincrement fields in the insert query.
+
+        Returns
+        -------
+            _T
+                The inserted model.
+
+        Examples
+        --------
+        >>> repository = RepositoryBase()
+        >>> class User(SQLModel):
+        >>>     name: str
+        >>>     age: int
+        >>>     id: int
+
+        >>> repository.model = User
+        >>> user = User(id=1, name="Jhon", age=25)
+        >>> repository.insert(user)
+        User(id=1, name="Jhon", age=25)
+
+        If the flag `have_autoincrement_default` is set ``False``, It's because the ID or primary key
+        is generated for database automatic
+
+        >>> user = User(name="Lauri", age=25)
+        >>> repository.insert(user, have_autoincrement_default=False)
+        User(id=2, name="Lauri", age=25)
+
+        Raises:
+            Any specific exceptions that might be raised during the insert operation.
+
+        """
         model_dict: dict = model.model_dump()
 
         if not have_autoincrement_default:
@@ -188,6 +253,49 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
             raise
 
     def insert_all(self, *, models: List[Type[_T]], have_autoincrement_default: bool = True) -> bool:
+        """
+        Insert a list of models into the database.
+
+        Parameters
+        ----------
+            models: list[Type[_T]]
+                The list of models to be inserted into the database.
+            have_autoincrement_default: bool
+                A flag to specify whether to include autoincrement fields in the insert query.
+
+        Returns
+        -------
+            bool
+                The inserted model.
+
+        Examples
+        --------
+        >>> repository = RepositoryBase()
+        >>> class User(SQLModel):
+        >>>     name: str
+        >>>     age: int
+        >>>     id: int
+
+        >>> repository.model = User
+        >>> user = User(id=1, name="Jhon", age=25)
+        >>> user2 = User(id=2, name="Jhon2", age=25)
+        >>> user_list = [user, user2]
+        >>> repository.insert_all(user_list)
+        True
+
+        If the flag `have_autoincrement_default` is set ``False``, It's because the ID or primary key
+        is generated for database automatic
+
+        >>> user = User(id=1, name="Jhon", age=25)
+        >>> user2 = User(id=2, name="Jhon2", age=25)
+        >>> user_list = [user, user2]
+        >>> repository.insert_all(user_list, have_autoincrement_default=False)
+        True
+
+        Raises:
+            Any specific exceptions that might be raised during the insert operation.
+
+        """
         try:
 
             models = [{**data.model_dump()} for data in models]
@@ -216,12 +324,50 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
             raise
 
     def get_data(self) -> 'RepositoryBase[_T]':
+        """
+        Constructs an SQL query to select fields from a table and stores it in the `__query` attribute.
+
+        The query is built using the table name defined in the model and the specified fields.
+        The method returns the current repository instance.
+
+        Returns
+        -------
+        RepositoryBase[_T]
+            The current repository instance with the constructed SQL query stored in `__query`.
+        """
+
         self.__query = f"select {self.__fields} from {self.model.__tablename__}"
 
         return self
 
     def get_all(self, model: Optional[Type[_T]] = None) -> Optional[List[_T]]:
+        """
+        Retrieves all records from the table corresponding to the given model and returns them as a list of model
+        instances.
 
+        If a model is provided, it updates the `self.model` attribute with the provided model.
+        If `self.model` is not set, an exception is raised.
+        Executes a SQL query to fetch all records from the table and converts the results into instances of the model.
+
+        Parameters
+        ----------
+        model : Optional[Type[_T]], optional
+            The model class to be used for fetching records. If not provided, the existing `self.model` is used.
+
+        Returns ------- Optional[List[_T]] A list of instances of the model populated with data from the table.
+        Returns an empty list if no records are found.
+
+        Example
+        -------
+        >>> userRepository = RepositoryBase()
+        >>> userRepository.get_all()
+        [User(id=1, name="Jhon", age=25), User(id=2, name="Gabe", age=25), ...]
+
+        Raises
+        ------
+        Exception
+            If `self.model` is not set.
+        """
         if model is not None:
             self.model = model
 
@@ -243,7 +389,52 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
 
     def get_one(self, where: DictOrStr,
                 operators: ListStrOrNone = None) -> 'RepositoryBase[_T]':
+        """
+        Constructs an SQL query to select a single record from the table based on the specified conditions and stores
+        it in the ``__query`` attribute.
 
+           Validates the types of ``where`` and ``operators`` parameters. If the ``self.model`` is not set,
+           it raises an exception. Constructs the SQL `WHERE` clause from the provided conditions and operators.
+
+           Parameters
+           ----------
+           where : DictOrStr
+               The conditions to be used in the SQL ``WHERE`` clause. Can be a dictionary or a string.
+           operators : ListStrOrNone, optional
+               A list of SQL operators to be used in the ``WHERE`` clause. If not provided, defaults to ``None``.
+
+           Returns
+           -------
+           RepositoryBase[_T]
+               The current repository instance with the constructed SQL query stored in ``__query``.
+
+            Examples
+            --------
+            >>> repository = RepositoryBase()
+
+            * Using as_model method
+
+            >>> repository.get_one({"name": "Jhon"}).as_model()
+            User(id=1, name='Jhon', age=25)
+
+            * Using as_dict method
+
+            >>> repository.get_one({"name": "Jhon"}).as_dict()
+            {"id": 1, "name": 'Jhon', "age": 25}
+
+            * Using as_df method
+            >>> repository.get_one("name = 'Jhon'").as_df()
+               id      name     age
+            0   1  John Doe     25
+
+
+           Raises
+           ------
+           ParameterTypeError
+               If the type of ``where`` is not ``DictOrStr`` or if the type of ``operators`` is not ``ListStrOrNone``.
+           NotImplementedError
+               If ``self.model`` is not set.
+       """
         if not is_dict_or_str(where):
             raise ParameterTypeError(DictOrStrType)
 
@@ -263,7 +454,57 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
 
     def update(self, set_fields: DictOrStr, where: DictOrStr,
                operators: ListStrOrNone = None) -> bool:
+        """
+            Constructs and executes an SQL update query to
+            update records in the table based on the specified conditions.
 
+            Validates the types of ``set_fields``, ``where``, and ``operators`` parameters.
+            If the ``self.model`` is not set, it raises an exception.
+            Constructs the SQL `SET` and `WHERE` clauses from the provided parameters.
+
+            Parameters
+            ----------
+            set_fields : DictOrStr
+                The fields and their new values to be set in the update query. Can be a dictionary or a string.
+            where : DictOrStr
+                The conditions to be used in the SQL `WHERE` clause. Can be a dictionary or a string.
+            operators : ListStrOrNone, optional
+                A list of SQL operators to be used in the `WHERE` clause. If not provided, defaults to `None`.
+
+            Returns
+            -------
+            bool
+                ``True`` if the update query affected any rows, ``False`` otherwise.
+
+            Raises
+            ------
+            ParameterTypeError
+                If the type of `set_fields`, `where`, or `operators` is not as expected.
+            NotImplementedError
+                If `self.model` is not set.
+
+            Examples
+            --------
+            Updating a record with specified fields and conditions:
+
+            >>> repository = RepositoryBase()
+            >>> class User(SQLModel):
+            >>>     name: str
+            >>>     age: int
+            >>>     id: int
+
+            >>> repository.model = User
+            >>> repository.update({'name': 'John Doe', 'age': 30}, {'id': 1})
+            True
+
+            This will result in the following query being executed:
+
+            >>> repository.update('name = \'Jhon Doe\', age = 30', 'id = 1')
+            # SQL query executed: "update user_model set name = 'John Doe', age = 30 where id = 1;"
+
+            >>> repository.update('name = \'Jhon Doe\', age = 30', 'id = 1, age > 20', ['and'])
+            # SQL query executed: "update user_model set name = 'John Doe', age = 30 where id = 1 and age > 20;"
+        """
         if not is_dict_or_str(set_fields):
             raise ParameterTypeError(DictOrStrType)
 
@@ -301,7 +542,51 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
         return bool(result.rowcount)
 
     def delete(self, where: DictOrStr, operators: ListStrOrNone = None) -> bool:
+        """
+            Constructs and executes an SQL delete query to remove records
+            from the table based on the specified conditions.
 
+            Validates the types of `where` and `operators` parameters. If the `self.model` is not set,
+            it raises an exception. Constructs the SQL `WHERE` clause from the provided conditions and operators.
+
+            Parameters
+            ----------
+            where : DictOrStr
+                The conditions to be used in the SQL `WHERE` clause. Can be a dictionary or a string.
+            operators : ListStrOrNone, optional
+                A list of SQL operators to be used in the `WHERE` clause. If not provided, defaults to `None`.
+
+            Returns
+            -------
+            bool
+                `True` if the delete query affected any rows, `False` otherwise.
+
+            Raises
+            ------
+            ParameterTypeError
+                If the type of `where` or `operators` is not as expected.
+            NotImplementedError
+                If `self.model` is not set.
+
+            Examples
+            --------
+            Deleting records with specified conditions:
+
+            >>> repository = RepositoryBase()
+            >>> class User(SQLModel):
+            >>>     name: str
+            >>>     age: int
+            >>>     id: int
+
+            >>> repository.model = User
+            >>> repository.delete({'id': 1})
+            True
+
+            This will result in the following query being executed:
+
+            >>> repository.delete('id = 1')
+            # SQL query executed: "delete from user_model where id = 1;"
+        """
         if not is_dict_or_str(where):
             raise ParameterTypeError(DictOrStrType)
 
@@ -319,6 +604,27 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
         return bool(result.rowcount)
 
     def as_model(self) -> Optional[_T]:
+        """
+            Executes the stored SQL query and returns the result as an instance of the model.
+
+            If the query results in an empty set, `None` is returned. The method also attempts to parse any datetime fields
+            from the result.
+
+            Returns
+            -------
+            Optional[_T]
+                An instance of the model populated with the query result, or `None` if no result is found.
+
+            Examples
+            --------
+            Retrieving a single record as a model instance:
+
+            >>> repository = RepositoryBase()
+            >>> repository.fields('id, name, created_at').get_data()
+            >>> model_instance = repository.as_model()
+            >>> model_instance
+            UserModel(id=1, name='John Doe', created_at=datetime.datetime(2023, 1, 1, 0, 0))
+        """
         if self.__query != "":
             model_found = self.__execute(self.__query, mode='as_pd')
 
@@ -339,6 +645,26 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
         return None
 
     def as_dict(self) -> Optional[DotDict]:
+        """
+           Executes the stored SQL query and returns the result as a dictionary.
+
+           If the query results in an empty set, `None` is returned.
+
+           Returns
+           -------
+           Optional[DotDict]
+               A dictionary representation of the query result, or `None` if no result is found.
+
+           Examples
+           --------
+           Retrieving a single record as a dictionary:
+
+           >>> repository = RepositoryBase()
+           >>> repository.fields('id, name, created_at').get_data()
+           >>> result_dict = repository.as_dict()
+           >>> result_dict
+           DotDict({'id': 1, 'name': 'John Doe', 'created_at': '2023-01-01T00:00:00'})
+       """
         if self.__query != "":
             model_found = self.__execute(self.__query, mode='as_pd')
 
@@ -351,6 +677,27 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
         return None
 
     def as_df(self) -> Optional[DataFrame]:
+        """
+           Executes the stored SQL query and returns the result as a pandas DataFrame.
+
+           If the query results in an empty set, `None` is returned.
+
+           Returns
+           -------
+           Optional[DataFrame]
+               A pandas DataFrame containing the query result, or `None` if no result is found.
+
+           Examples
+           --------
+           Retrieving query results as a DataFrame:
+
+           >>> repository = RepositoryBase()
+           >>> repository.fields('id, name, created_at').get_data()
+           >>> result_df = repository.as_df()
+           >>> result_df
+              id      name          created_at
+           0   1  John Doe  2023-01-01 00:00:00
+       """
         if self.__query != "":
             model_found = self.__execute(self.__query, mode='as_pd')
 
