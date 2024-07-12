@@ -203,14 +203,13 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
         >>>     id: int
 
         >>> repository.model = User
-        >>> user = User(id=1, name="Jhon", age=25)
+        >>> user = User(name="Jhon", age=25)
         >>> repository.insert(user)
         User(id=1, name="Jhon", age=25)
 
-        If the flag `have_autoincrement_default` is set ``False``, It's because the ID or primary key
-        is generated for database automatic
+        If the flag `have_autoincrement_default` is set ``False``, the **primary key** must be specified in the model
 
-        >>> user = User(name="Lauri", age=25)
+        >>> user = User(id=2, name="Lauri", age=25)
         >>> repository.insert(user, have_autoincrement_default=False)
         User(id=2, name="Lauri", age=25)
 
@@ -276,14 +275,13 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
         >>>     id: int
 
         >>> repository.model = User
-        >>> user = User(id=1, name="Jhon", age=25)
-        >>> user2 = User(id=2, name="Jhon2", age=25)
+        >>> user = User(name="Jhon", age=25)
+        >>> user2 = User(name="Jhon2", age=25)
         >>> user_list = [user, user2]
         >>> repository.insert_all(user_list)
         True
 
-        If the flag `have_autoincrement_default` is set ``False``, It's because the ID or primary key
-        is generated for database automatic
+        If the flag `have_autoincrement_default` is set ``False``, the **primary key** must be specified in the model
 
         >>> user = User(id=1, name="Jhon", age=25)
         >>> user2 = User(id=2, name="Jhon2", age=25)
