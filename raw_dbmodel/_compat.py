@@ -222,9 +222,10 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
         if have_autoincrement_default:
             table = inspect(self.model).tables[0]
             columns_pks = [column.name for column in table.primary_key.columns]
+            keys_from_dict = model_dict.keys()
 
             for field_pk in columns_pks:
-                for key in model_dict.keys():
+                for key in keys_from_dict:
                     if field_pk == key:
                         model_dict.pop(field_pk)
 
@@ -305,7 +306,8 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
 
                 for field_pk in columns_pks:
                     for model in models:
-                        if field_pk in model.keys():
+                        keys_from_dict = model.keys()
+                        if field_pk in keys_from_dict:
                             model.pop(field_pk)
                             continue
 
