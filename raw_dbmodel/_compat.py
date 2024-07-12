@@ -300,15 +300,15 @@ class RepositoryBase(Generic[_T], RepositoryAbstract):
             models = [{**data.model_dump()} for data in models]
             _sql = self.model.__table__.insert()
 
-            if not have_autoincrement_default:
+            if have_autoincrement_default:
                 table = inspect(self.model).tables[0]
-                columns_key = [
+                columns_pks = [
                     column.name for column in table.primary_key.columns]
 
-                for field_key in columns_key:
+                for field_pk in columns_pks:
                     for model in models:
-                        if field_key in model.keys():
-                            model.pop(field_key)
+                        if field_pk in model.keys():
+                            model.pop(field_pk)
                             continue
 
                 _columns = ', '.join(models[0].keys())
