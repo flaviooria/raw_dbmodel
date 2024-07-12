@@ -3,6 +3,7 @@ import unittest
 
 from assertpy import add_extension, assert_that, fail
 from pandas import DataFrame
+
 from raw_dbmodel import create_tables
 from tests.domain import User
 from tests.domain.schema import UserSchema
@@ -39,8 +40,8 @@ class TestUserRepository(unittest.TestCase):
                            email='test_flavio@dev', password='test')
         user_to_create = User.model_validate(user)
         user_to_create2 = User.model_validate(user2)
-        user_created = self.userRepository.insert(user_to_create)
-        user_created2 = self.userRepository.insert(user_to_create2)
+        user_created = self.userRepository.insert(user_to_create, have_autoincrement_default=False)
+        user_created2 = self.userRepository.insert(user_to_create2, have_autoincrement_default=False)
 
         assert_that(user_to_create).is_same_as(user_created)
         assert_that(user_to_create2).is_same_as(user_created2)
@@ -63,7 +64,7 @@ class TestUserRepository(unittest.TestCase):
 
         self._id = ids[-1]
         is_insert_all_users = self.userRepository.insert_all(
-            models=users)
+            models=users, have_autoincrement_default=False)
 
         assert_that(is_insert_all_users).is_true()
 
