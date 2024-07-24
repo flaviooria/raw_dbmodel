@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "raw-dbmodel"
-version = "0.2.3"
+version = "0.2.4"
 description = "A library to interact with raw SQL databases"
 authors = ["Flavio Oria <flavio.oriap@gmail.com>"]
 readme = "README.md"
